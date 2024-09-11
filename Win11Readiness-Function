@@ -1,0 +1,58 @@
+function Get-SystemCompatibilityChecks {
+    # Check if the system architecture is x64-based
+    $Arch = (Get-CimInstance -Class CIM_ComputerSystem).SystemType
+    $ArchValue = "x64-based PC"
+    $ArchCheck = if ($Arch -ne $ArchValue) { "0" } else { "1" }
+
+    # Check if the screen resolution meets the minimum requirement
+    $ScreenInfo = (Get-CimInstance -ClassName Win32_VideoController).CurrentVerticalResolution
+    $ValueMin = 720 
+    $ScreenCheck = if ($ScreenInfo -le $ValueMin) { "0" } else { "1" }
+
+    # Check if the processor meets minimum core count and frequency requirements
+    $Core = (Get-CimInstance -Class CIM_Processor | Select-Object *).NumberOfCores
+    $CoreValue = 2
+    $Frequency = (Get-CimInstance -Class CIM_Processor | Select-Object *).MaxClockSpeed
+    $FrequencyValue = 1000
+    $ProcessorCheck = if (($Core -ge $CoreValue) -and ($Frequency -ge $FrequencyValue)) {
+        "1"
+    } else {
+        "0"
+    }
+
+    # Check if TPM is supported
+    $checkTPMVersion = (Get-Tpm).ManufacturerVersionFull20
+    $TPMCheck = if ($checkTPMVersion -like '*not supported*') { "0" } else { "1" }
+
+    # Check if Secure Boot is enabled
+    $SecureBoot = Confirm-SecureBootUEFI
+    $SecureBootCheck = if ($SecureBoot -ne $True) { "0" } else { "1" }
+
+    # Check if the system has the minimum required memory
+    $Memory = (Get-CimInstance -Class CIM_ComputerSystem).TotalPhysicalMemory
+    $SetMinMemory = 4GB
+    $MemoryCheck = if ($Memory -lt $SetMinMemory) { "0" } else { "1" }
+
+    # Check if any disk has the minimum required free space
+    $ListDisk = Get-CimInstance -Class Win32_LogicalDisk | Where-Object { $_.DriveType -eq "3" }
+    $SetMinSizeLimit = 64GB
+    $DiskCheck = "0"
+    foreach ($Disk in $ListDisk) {
+        $DiskFreeSpace = ($Disk.FreeSpace / 1GB).ToString('F2')
+        if ([double]$DiskFreeSpace -ge $SetMinSizeLimit) {
+            $DiskCheck = "1"
+            break
+        }
+    }
+
+    # Return all check results as a custom object
+    return [PSCustomObject]@{
+        ArchCheck = $ArchCheck
+        ScreenCheck = $ScreenCheck
+        ProcessorCheck = $ProcessorCheck
+        TPMCheck = $TPMCheck
+        SecureBootCheck = $SecureBootCheck
+        MemoryCheck = $MemoryCheck
+        DiskCheck = $DiskCheck
+    }
+}
