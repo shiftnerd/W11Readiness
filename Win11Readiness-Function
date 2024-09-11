@@ -56,3 +56,6 @@ function Get-SystemCompatibilityChecks {
         DiskCheck = $DiskCheck
     }
 }
+# Example usage of the function:
+# $compatibilityResults = Get-SystemCompatibilityChecks
+# $compatibilityResults | Format-Table -AutoSize
